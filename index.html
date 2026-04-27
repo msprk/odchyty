@@ -870,15 +870,15 @@
     // Nadpis
     drawHeader(doc, W, M);
     doc.setTextColor(26,24,20); doc.setFontSize(14); doc.setFont("Lato","bold");
-    doc.text("Záznam o odchyte zvieraťa", W/2, 32, {align:"center"});
+    doc.text("Záznam o odchyte zvieraťa", W/2, 48, {align:"center"});
 
     // ID a dátum
     doc.setFontSize(9); doc.setFont("Lato","normal");
     doc.setTextColor(120,116,106);
-    doc.text("ID: "+rid, M, 27);
-    doc.text(new Date().toLocaleDateString("sk-SK"), W-M, 27, {align:"right"});
+    doc.text("ID: "+rid, M, 54);
+    doc.text(new Date().toLocaleDateString("sk-SK"), W-M, 54, {align:"right"});
 
-    let y=40;
+    let y=60;
 
     function section(num,title){
       y+=4;
@@ -917,11 +917,7 @@
 
     if(r.notes){ section(4,"Poznámky"); oneCol("",r.notes); }
 
-    doc.setFillColor(240,242,245); doc.rect(0,287,W,10,"F");
-    doc.setTextColor(120,116,106); doc.setFontSize(8);
-    doc.text("Záznam odchytu · ID: "+rid,M,293);
-    doc.text("Strana 1 z 1",W-M,293,{align:"right"});
-
+    drawFooter(doc, W, M, "Odchyt zvierat", rid);
     doc.save("odchyt-"+rid+".pdf");
   };
 
