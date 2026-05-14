@@ -1,4 +1,4 @@
-<html lang="en">
+<html lang="sk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -421,7 +421,7 @@
   // ── AUTH GUARD ──
   const auth = getAuth(app);
   onAuthStateChanged(auth, user => {
-    if (!user) window.location.href = "https://msprk.github.io/";
+    if (!user) window.location.href = "/";
   });
   // ────────────────
   const db     = getDatabase(app);
@@ -497,7 +497,7 @@
       const rid     = r.id.slice(-6).toUpperCase();
       const isOpen  = openId === r.id;
       return `
-      <div class="record-card${isClosed?" closed":""}">
+      <div class="record-card${isClosed?" uzavreté":""}">
         <div class="record-header" onclick="toggleCard('${r.id}')">
           <div class="animal-icon" style="background:${bg}">${icon}</div>
           <div class="record-main">
@@ -743,7 +743,7 @@
   window.saveEdit     = id => {
     const g = s => { const el=document.getElementById(s); return el?el.value.trim():""; };
     const finished = g("e-finished");
-    const status   = finished || r.status || "shelter";
+    const status   = finished || allRecords[id]?.status || "shelter";
     update(ref(db,"odchyty/"+id), {
       date:        g("e-date"),
       time:        g("e-time"),
@@ -764,7 +764,8 @@
       notes:       g("e-notes"),
       finished,
       status
-    }).then(() => { editId = null; render(); });
+    }).then(() => { editId = null; render(); })
+      .catch(err=>{ alert("Chyba ukladania: "+err.message); });
   };
   window.updateStatus = (id,status) => update(ref(db,"odchyty/"+id),{status});
   window.deleteRecord = id => { if(confirm("Natrvalo vymazať tento záznam?")) remove(ref(db,"odchyty/"+id)); };
