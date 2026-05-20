@@ -268,7 +268,7 @@
   <div id="tab-records">
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" placeholder="Hľadať podľa miesta, pracovníka, ID..." oninput="render()" />
+      <input type="text" id="search-input" placeholder="Hľadať podľa miesta, príslušníka MsP, ID..." oninput="render()" />
     </div>
     <div class="filter-row">
       <button class="filter-btn active" onclick="setFilter('all',this)">Všetky</button>
@@ -468,6 +468,7 @@
     document.getElementById("status-text").textContent = on ? "Online" : "Offline";
   }
   function escapeHtml(s) {
+  function fmtDate(d){ return d ? d.split("-").reverse().join(".") : "—"; }
     if (s == null) return "";
     return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
@@ -530,7 +531,7 @@
           <div class="animal-icon" style="background:${bg}">${icon}</div>
           <div class="record-main">
             <div class="record-title">${escapeHtml(r.type||"Zviera")} — ${escapeHtml(r.sex||"neznáme")}${r.colour?", "+escapeHtml(r.colour):""}</div>
-            <div class="record-sub">${escapeHtml(r.place||"—")} &middot; ${escapeHtml(r.date||"")} ${escapeHtml(r.time||"")} &middot; ${escapeHtml(r.caughtBy||"—")}</div>
+            <div class="record-sub">${escapeHtml(r.place||"—")} &middot; ${fmtDate(r.date)} ${escapeHtml(r.time||"")} &middot; ${escapeHtml(r.caughtBy||"—")}</div>
             <div class="record-id">ID: ${rid}</div>
           </div>
           <span class="badge ${sc}">${sl}</span>
@@ -620,7 +621,7 @@
           ` : `
           <div class="stage">
             <div class="detail-grid">
-              ${df("Dátum odchytu",r.date)}${df("Čas odchytu",r.time)}
+              ${df("Dátum odchytu",fmtDate(r.date))}${df("Čas odchytu",r.time)}
               ${df("Miesto odchytu",r.place)}${df("Náročnosť odchytu",r.difficulty)}
             </div>
           </div>
@@ -929,7 +930,7 @@
     }
 
     section(1,"Dátum, miesto a náročnosť");
-    twoCol("Dátum odchytu",r.date,"Čas odchytu",r.time);
+    twoCol("Dátum odchytu",fmtDate(r.date),"Čas odchytu",r.time);
     twoCol("Miesto odchytu",r.place,"Náročnosť odchytu",r.difficulty);
 
     section(2,"Informácie o zvierati");
