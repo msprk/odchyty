@@ -268,7 +268,7 @@
   <div id="tab-records">
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" placeholder="Hľadať podľa miesta, príslušníka MsP, ID..." oninput="render()" />
+      <input type="text" id="search-input" placeholder="Hľadať podľa miesta, mena, ID, príslušníka, farby, správania, dátumu..." oninput="render()" />
     </div>
     <div class="filter-row">
       <button class="filter-btn active" onclick="setFilter('all',this)">Všetky</button>
@@ -511,11 +511,9 @@
     const entries = Object.entries(allRecords).map(([id,v])=>({id,...v})).sort((a,b)=>(b.ts||0)-(a.ts||0));
 
     let filtered = entries;
-    if (currentFilter==="active")      filtered = entries.filter(r=>!CLOSED.includes(r.status));
-    if (currentFilter==="closed")      filtered = entries.filter(r=>CLOSED.includes(r.status));
     if (currentFilter==="shelter")     filtered = entries.filter(r=>r.status==="shelter");
     if (currentFilter==="backtoowner") filtered = entries.filter(r=>r.status==="backtoowner");
-    if (q) filtered = filtered.filter(r=>[r.place,r.caughtBy,r.animalId,r.type,r.colour,r.owner,r.reportedBy,r.notes].some(v=>(v||"").toLowerCase().includes(q)));
+    if (q) filtered = filtered.filter(r=>[r.place,r.caughtBy,r.animalId,r.type,r.colour,r.owner,r.reportedBy,r.notes,r.animalName,r.shift,r.date,r.behaviour,r.sex,r.howReported].some(v=>(v||"").toLowerCase().includes(q)));
 
     const container = document.getElementById("records-list");
     if (!filtered.length) { container.innerHTML=`<div class="empty">${entries.length?"Žiadne záznamy nezodpovedajú filtru.":"Zatiaľ žiadne záznamy — pridajte prvý odchyt!"}</div>`; return; }
@@ -546,7 +544,7 @@
           </button>
         </div>
         <div class="record-detail ${isOpen?"open":""}">
-          ${r.photoUrl?`<div style="padding:12px 14px 0"><img src="${r.photoUrl}" class="record-photo" /></div>`:""}
+          ${r.photoUrl&&editId!==r.id?`<div style="padding:12px 14px 0"><img src="${r.photoUrl}" class="record-photo" /></div>`:""}
           ${editId===r.id ? `
           <div class="stage" id="edit-form-${r.id}">
             <div class="edit-grid">
@@ -614,6 +612,11 @@
                 </select>
               </div>
               <div class="edit-group full"><label class="edit-label">Poznámky</label><textarea class="edit-field ta" id="e-notes">${r.notes||""}</textarea></div>
+              <div class="edit-group full"><label class="edit-label">Fotografia</label>
+                <input type="hidden" id="e-photo-removed" value="0">
+                ${r.photoUrl?`<div id="e-photo-preview-wrap" style="margin-bottom:8px"><img src="${r.photoUrl}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;margin-bottom:6px"><button type="button" onclick="removeEditPhotoPreview()" style="font-size:12px;color:#c0392b;background:none;border:none;cursor:pointer;padding:0;font-family:inherit">× Odstrániť fotku</button></div>`:""}
+                <input type="file" accept="image/*" id="e-photo" class="edit-field" style="padding:4px">
+              </div>
             </div>
           </div>
           <div class="detail-actions">
@@ -682,8 +685,8 @@
 
     // Filter entries by selected period
     const entries = allEntries.filter(r => {
-      const d = new Date(r.ts||0);
-      if (d.getFullYear() !== selYear) return false;
+      const d = r.ts ? new Date(r.ts) : r.date ? new Date(r.date) : null;
+      if (!d || d.getFullYear() !== selYear) return false;
       if (selMonth !== "" && d.getMonth() !== Number(selMonth)) return false;
       return true;
     });
@@ -723,12 +726,12 @@
     if (selMonth === "") {
       document.getElementById("monthly-title").textContent = "Podľa mesiaca";
       chartLabels = months;
-      chartData = months.map((_,i) => allEntries.filter(r=>{ const d=new Date(r.ts||0); return d.getFullYear()===selYear && d.getMonth()===i; }).length);
+      chartData = months.map((_,i) => allEntries.filter(r=>{ const d=r.ts?new Date(r.ts):r.date?new Date(r.date):null; return d&&d.getFullYear()===selYear&&d.getMonth()===i; }).length);
     } else {
       document.getElementById("monthly-title").textContent = "Podľa dňa — " + monthNames[Number(selMonth)];
       const daysInMonth = new Date(selYear, Number(selMonth)+1, 0).getDate();
       chartLabels = Array.from({length:daysInMonth},(_,i)=>String(i+1));
-      chartData = chartLabels.map((_,i) => allEntries.filter(r=>{ const d=new Date(r.ts||0); return d.getFullYear()===selYear && d.getMonth()===Number(selMonth) && d.getDate()===i+1; }).length);
+      chartData = chartLabels.map((_,i) => allEntries.filter(r=>{ const d=r.ts?new Date(r.ts):r.date?new Date(r.date):null; return d&&d.getFullYear()===selYear&&d.getMonth()===Number(selMonth)&&d.getDate()===i+1; }).length);
     }
     const ctx = document.getElementById("monthly-chart").getContext("2d");
     if (monthlyChart) monthlyChart.destroy();
@@ -772,11 +775,13 @@
   window.toggleCard   = id => { openId = openId===id?null:id; editId = null; render(); };
   window.startEdit    = id => { editId = id; openId = id; render(); };
   window.cancelEdit   = ()  => { editId = null; render(); };
-  window.saveEdit     = id => {
+  window.saveEdit = async id => {
     const g = s => { const el=document.getElementById(s); return el?el.value.trim():""; };
+    const btn = document.querySelector(".edit-save");
+    if(btn){btn.disabled=true;btn.textContent="Ukladanie...";}
     const finished = g("e-finished");
     const status   = finished || allRecords[id]?.status || "shelter";
-    update(ref(db,"odchyty/"+id), {
+    const data = {
       date:        g("e-date"),
       time:        g("e-time"),
       place:       g("e-place"),
@@ -795,8 +800,21 @@
       owner:       g("e-owner"),
       notes:       g("e-notes"),
       status
-    }).then(() => { editId = null; render(); })
-      .catch(err=>{ alert("Chyba ukladania: "+err.message); });
+    };
+    try {
+      const photoInput = document.getElementById("e-photo");
+      const photoFile  = photoInput?.files[0];
+      const removed    = document.getElementById("e-photo-removed")?.value === "1";
+      if(photoFile){if(btn)btn.textContent="Spracovanie fotografie...";data.photoUrl=await compressImage(photoFile);}
+      else if(removed){data.photoUrl=null;}
+      if(btn)btn.textContent="Ukladanie...";
+      await update(ref(db,"odchyty/"+id), data);
+      editId=null; render();
+    } catch(err){
+      alert("Chyba ukladania: "+err.message);
+    } finally {
+      if(btn){btn.disabled=false;btn.textContent="Uložiť zmeny";}
+    }
   };
   window.updateStatus = (id,status) => update(ref(db,"odchyty/"+id),{status});
   window.deleteRecord = id => { if(confirm("Natrvalo vymazať tento záznam?")) remove(ref(db,"odchyty/"+id)); };
@@ -814,6 +832,12 @@
       label.style.display = "none"; btn.style.display = "block";
     };
     reader.readAsDataURL(input.files[0]);
+  };
+  window.removeEditPhotoPreview = function() {
+    const wrap = document.getElementById("e-photo-preview-wrap");
+    if(wrap) wrap.style.display="none";
+    const flag = document.getElementById("e-photo-removed");
+    if(flag) flag.value="1";
   };
   window.removePhoto = function(e) {
     e.stopPropagation();
@@ -873,6 +897,7 @@
       ["f-place","f-animal-name","f-colour","f-animal-id","f-reported-by","f-owner","f-notes"].forEach(id=>document.getElementById(id).value="");
       ["f-type","f-sex","f-age","f-behaviour","f-difficulty","f-caught-by","f-shift","f-finished","f-how-reported"].forEach(id=>document.getElementById(id).value="");
       window.removePhoto({stopPropagation:()=>{}});
+      const _n=new Date(); document.getElementById("f-date").value=_n.toISOString().split("T")[0]; document.getElementById("f-time").value=_n.toTimeString().slice(0,5);
       switchTab("records");
     } catch(err) {
       btn.disabled=false; btn.textContent="Uložiť záznam odchytu";
